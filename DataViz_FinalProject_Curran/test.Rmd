@@ -1,0 +1,18 @@
+---
+title: "test2"
+author: "Thomas Curran"
+date: "5/25/2017"
+output: html_document
+---
+```{r}
+expenditures<-read_csv("okcpsExp.csv")
+library(tidyverse)
+library(DT)
+
+
+fundAgg <- aggregate(expenditures$Expenditure, by=list(expenditures$YR), FUN=sum)
+
+x<-DT::renderDataTable(fundAgg)  
+
+x
+```
