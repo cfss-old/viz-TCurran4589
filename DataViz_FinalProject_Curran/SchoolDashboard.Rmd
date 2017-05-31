@@ -191,7 +191,7 @@ renderPlot({
 })
 ```
 
-Row{.tabset}
+Row
 ---------------------------------------------
 ###Query Grades
 ```{r}
@@ -213,6 +213,32 @@ renderTable({
   gradeGroups()
 })
 ```
+
+###District Financials
+```{r}
+
+rev_agg <- aggregate(revenues$Revenue, by=list(revenues$Yr), FUN = sum)
+names(rev_agg)<- c("Year","Revenue")
+exp_agg <-aggregate(expenditures$Expenditure, by=list(expenditures$YR), FUN = sum)
+names(exp_agg)<-c("Year","Expenditure")
+
+fin <-left_join(rev_agg,exp_agg, by=c("Year"="Year"))
+
+fin<-gather(fin, source, money, Revenue:Expenditure)
+renderPlotly({
+  ggplot(
+    fin,
+    aes(
+      x=fin$Year,
+      y=fin$money,
+      group = factor(source),
+      color =factor(source)
+    )) +geom_point()+
+      geom_line()+
+    theme(legend.position="none")
+})
+```
+
 
 School Explorer
 ==============================================================================
@@ -749,36 +775,30 @@ renderDataTable({
 
 Row
 -------------------------------------------------------
-###Box 1
+###District Revenues (2006 - 2016)
 ```{r}
-renderPlot({
-  
-})
 
-```
+z<-aggregate(revenues$Revenue, by=list(revenues$Yr), FUN = sum)
+names(z)<-c("Year","Total Revenue")
 
 
-###Box2
-```{r}
-revFund_sum <- aggregate(revenues$Revenue, by=list("Year"=revenues$Yr, "Fund Number" = revenues$FundCode), FUN = sum)
-
-names(revFund_sum) = c("Year","Fund Number", "Total")
-
-renderPlot(
+renderPlotly({
   ggplot(
-    revFund_sum,
-    aes(x=Year,
-        y=Total
-        )
-  ) +
-    geom_point()+
-    scale_x_discrete()+
-    scale_y_continuous()
-        theme(axis.text.x = element_text(angle = 45),
+  z,
+  aes(
+    y=z$`Total Revenue`,
+    x=z$Year)
+  ) + 
+  geom_point()+
+  geom_line()+
+  theme(axis.text.x = element_text(angle = 45),
           axis.text.y=element_text(angle = 45),
           legend.position = "none",
           panel.background = element_rect(fill = "white", color ="white") ,
           panel.grid.major = element_line(color ="light gray",size=.2)
-          )
-)
+          )+
+    ylab("Expenditures in Dollars")+
+    scale_y_continuous(labels = scales::dollar_format("$"))+
+    xlab("Fund Number")
+})
 ```

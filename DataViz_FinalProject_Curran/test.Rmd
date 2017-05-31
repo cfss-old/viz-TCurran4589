@@ -38,9 +38,9 @@ expenditures <- mutate(expenditures,
         fill = factor(Fund.Name))
   ) + 
     geom_bar(stat = "identity") + 
-    scale_x_discrete("FundCode")+
+    scale_x_discrete("Fund Code")+
     ylab("Expenditures in Dollars")+
-    scale_y_continuous(labels=currency)+
+    scale_y_continuous(labels = scales::dollar_format("$"))+
     xlab("Fund Number")+
     ggtitle(paste("Total Expenditure By Fund", unique(expenditures$Year), sep = " "))+
     theme(axis.text.x = element_text(angle = 45),
@@ -61,5 +61,50 @@ revenues<-aggregate(revenues$Revenue, by=list(revenues$Yr, revenues$FundCode, re
 
 DT::datatable(revenues)%>%
   DT::formatCurrency("x")
+```
+
+```{r}
+
+revenues<-read_csv("okcpsRev.csv")
+#revenues<-filter(revenues, FundCode == 11)
+z<-aggregate(revenues$Revenue, by=list(revenues$Yr), FUN = sum)
+names(z)<-c("Year","Total Revenue")
+#ggplot(z, aes(x=z$`Fund Code`,y=z$`Total Revenue`, group=factor(z$`Fund Code`)))+geom_bar(stat="identity")
+
+ggplot(
+  z,
+  aes(
+    y=z$`Total Revenue`,
+    x=z$Year)
+  ) + 
+  geom_point()+
+  geom_line()+
+  theme(axis.text.x = element_text(angle = 45),
+          axis.text.y=element_text(angle = 45),
+          legend.position = "none",
+          panel.background = element_rect(fill = "white", color ="white") ,
+          panel.grid.major = element_line(color ="light gray",size=.2)
+          )+
+    ylab("Expenditures in Dollars")+
+    scale_y_continuous(labels = scales::dollar_format("$"))+
+    xlab("Fund Number")
+```
+```{r}
+rev_agg <- aggregate(revenues$Revenue, by=list(revenues$Yr), FUN = sum)
+names(rev_agg)<- c("Year","Revenue")
+exp_agg <-aggregate(expenditures$Expenditure, by=list(expenditures$YR), FUN = sum)
+names(exp_agg)<-c("Year","Expenditure")
+
+rev_agg
+
+exp_agg
+
+
+
+
+fin <-left_join(rev_agg,exp_agg, by=c("Year"="Year"))
+fin<-gather(fin, source, money, Revenue:Expenditure)
+
+fin
 ```
 
