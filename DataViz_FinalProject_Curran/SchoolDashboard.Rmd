@@ -8,7 +8,7 @@ runtime: shiny
 output:
   flexdashboard::flex_dashboard:
     orientation: rows
-    theme: spacelab
+    theme: default
 ---
 ```{r globals, include = FALSE, verbose=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
 #knitr::opts_chunk$set(verbose=FALSE, echo=FALSE, warning=FALSE, message=FALSE)
@@ -23,6 +23,7 @@ library(rgdal)
 library(stringr)
 library(formattable)
 library(ggthemes)
+library(DT)
 
 #Importing Data Sets
 ###############################################################################
@@ -437,73 +438,347 @@ funds<-unique(expenditures$FundNum_Description)
 func<- unique(expenditures$FunctionNum_Description)
 object<-unique(expenditures$ObjectCode_Description)
 
-
-
-#Fund Search
 selectInput(
-  "fundnum",
-  "Select Fund Code",
-  choices=c("All", funds)
+  "exp_year",
+  "Select Year",
+  choices = c("All", unique(expenditures$YR))
 )
-
-#Function Search
-selectInput(
-  "funcnum",
-  "Select Function Code ",
-  choices=c("All", func)
-)
-
-#Function Search
-selectInput(
-  "objectCode",
-  "Select Object Code ",
-  choices=c("All", object)
-)
-
 
 ```
 
-Column
+
+Row
+----------------------------------------------------
+###Total Expenditure
+```{r}
+
+totalExp <- reactive({
+  
+  if(input$exp_year  != 'All'){
+    x<-filter(expenditures, YR == input$exp_year)
+    x<-aggregate(x$Expenditure, by=list(x$YR), FUN = sum)
+    x$x<-formattable::currency(x$x)
+    x$x
+  } else {
+    x<-"-"
+  }
+})
+
+renderValueBox(
+  valueBox(
+    totalExp(),
+    "Total Expenditure",
+    color = "#30dd36",
+    icon = "fa-money"
+  )
+)
+```
+
+
+###Box 2
+```{r}
+renderValueBox(
+  valueBox(
+    "box #2",
+    "space for box 2",
+    color = "#2faedd",
+    icon = "fa-area-chart"
+  )
+)
+```
+
+###Box 3
+```{r}
+renderValueBox(
+  valueBox(
+    "box #3",
+    "space for box 3",
+    color = "#df7ff9",
+    icon = "fa-area-chart"
+  )
+)
+```
+
+###Box 4
+```{r}
+renderValueBox(
+  valueBox(
+    "box #4",
+    "space for box 4",
+    color = "orange",
+    icon = "fa-area-chart"
+  )
+)
+
+```
+
+Row
+-------------------------------------------------------
+```{r}
+expTable<- reactive({
+  
+  if(input$exp_year!='All'){
+    
+    x<- filter(expenditures, YR == input$exp_year)
+    
+    x<-aggregate(x$Expenditure, 
+               by=list(x$YR,
+                       x$FundCode, 
+                       x$FundDescript, 
+                       x$FunctionCode,
+                       x$FunctionDescrip,
+                       x$ObjectCode,
+                       x$ObjectDescrip),
+               FUN = sum)
+
+    names(x)<-c("Year",
+                "Fund Code",
+                "Fund Description",
+                "Function Code",
+                "Function Description",
+                "Object Code",
+                "Object Description",
+                "Expenditure")
+  
+    DT::datatable(x, 
+                  extensions = c("KeyTable",
+                                 "Responsive"),
+                  option = list(
+                    pageLength = 7
+                  )
+                  ) %>%
+    DT::formatCurrency("Expenditure")
+  
+  } else {
+    x<-expenditures
+    x<-aggregate(x$Expenditure, 
+               by=list(x$YR,
+                       x$FundCode, 
+                       x$FundDescript, 
+                       x$FunctionCode,
+                       x$FunctionDescrip,
+                       x$ObjectCode,
+                       x$ObjectDescrip),
+               FUN = sum)
+
+    names(x)<-c("Year",
+                "Fund Code",
+                "Fund Description",
+                "Function Code",
+                "Function Description",
+                "Object Code",
+                "Object Description",
+                "Expenditure")
+  
+    DT::datatable(x, 
+                  option = list(
+                    pageLength = 7
+                  ),
+                  extensions = c("Responsive")) %>%
+    DT::formatCurrency("Expenditure")
+    }
+})
+
+renderDataTable({
+  expTable()
+})
+```
+
+Row
+-------------------------------------------------------
+###Box 1
+```{r}
+
+```
+
+
+###Box2
+```{r}
+
+```
+
+
+District Revenues
+===============================================================================
+
+Column {.sidebar}
 -------------------------------------------------------
 ```{r}
 
-expend<-reactive({
-  #only Fund code filter is active
-  fund<-input$fundnum
-  fund<-substr(fund,1,2)
-  fund<-as.numeric(fund)
-  
-  funcnum<-input$funcnum
-  funcnum<-substr(funcnum,1,4)
-  funcnum<-as.numeric(funcnum)
-  
-  objectCode<-input$objectCode
-  objectCode<-substr(objectCode,1,3)
-  objectCode<-as.numeric(objectCode)
-  
-  x<-filter(expenditures, expenditures$FundCode == fund)
-  x<-aggregate(x, by = list(x$YR, x$FundCode, x$FundDescrip), FUN = sum)
-  names(x)<-c("Year","Fund Code", "Fund Description","Total")
-  x
-  
-})
+selectInput(
+  "rev_year",
+  "Select Year",
+  choices = c("All", unique(revenues$Yr))
+)
 
-renderTable({
-  expend()
-})
 ```
 
-Column
+
+Row
 ----------------------------------------------------
+###Total Revenue
 ```{r}
-renderText({
-  print("Hello")
+
+totalExp <- reactive({
+  
+  if(input$rev_year  != 'All'){
+    x<-filter(revenues, Yr == input$rev_year)
+    x<-aggregate(x$Revenue, by=list(x$Yr), FUN = sum)
+    x$x<-formattable::currency(x$x)
+    x$x
+  } else {
+    x<-"-"
+  }
 })
+
+renderValueBox(
+  valueBox(
+    totalExp(),
+    "Total Revenue",
+    color = "#30dd36",
+    icon = "fa-money"
+  )
+)
 ```
 
 
+###Ad Valorem
+```{r}
+renderValueBox(
+  valueBox(
+    "box #2",
+    "space for box 2",
+    color = "#2faedd",
+    icon = "fa-area-chart"
+  )
+)
+```
 
-District Revenue
-===============================================================================
+###Motor Vehicle
+```{r}
+renderValueBox(
+  valueBox(
+    "box #3",
+    "space for box 3",
+    color = "#df7ff9",
+    icon = "fa-area-chart"
+  )
+)
+```
+
+###Gross Production
+```{r}
+renderValueBox(
+  valueBox(
+    "box #4",
+    "space for box 4",
+    color = "orange",
+    icon = "fa-area-chart"
+  )
+)
+
+```
+
+Row
+-------------------------------------------------------
+```{r}
+r <- select(revenues, Yr, FundCode, FundDescrip, ResourceCode, ResourceDescrip, Revenue )
+
+rt<- reactive({
+    
+  if(input$rev_year!='All'){
+    
+    x<- filter(revenues, Yr == input$rev_year)
+    
+    x<-aggregate(x$Revenue, 
+               by=list(x$Yr,
+                       x$FundCode, 
+                       x$FundDescrip, 
+                       x$ResourceCode,
+                       x$ResourceDescrip),
+               FUN = sum)
+
+    names(x)<-c("Year",
+                "Fund Code",
+                "Fund Description",
+                "Resource Code",
+                "Resource Description",
+                "Revenue")
+  
+    DT::datatable(x, 
+                  extensions = c("KeyTable",
+                                 "Responsive"),
+                  option = list(
+                    pageLength = 7
+                  )
+                  ) %>%
+    DT::formatCurrency("Revenue")
+  
+  } else {
+    x<-revenues
+    x<-aggregate(x$Revenue, 
+               by=list(x$Yr,
+                       x$FundCode, 
+                       x$FundDescrip, 
+                       x$ResourceCode,
+                       x$ResourceDescrip),
+               FUN = sum)
+
+    names(x)<-c("Year",
+                "Fund Code",
+                "Fund Description",
+                "Resource Code",
+                "Resource Description",
+                "Revenue")
+  
+    DT::datatable(x, 
+                  option = list(
+                    pageLength = 7
+                  ),
+                  extensions = c("Responsive")) %>%
+    DT::formatCurrency("Revenue")
+    }
+  
+  
+})
+
+renderDataTable({
+  rt()
+})
+```
+
+Row
+-------------------------------------------------------
+###Box 1
+```{r}
+renderPlot({
+  
+})
+
+```
 
 
+###Box2
+```{r}
+revFund_sum <- aggregate(revenues$Revenue, by=list("Year"=revenues$Yr, "Fund Number" = revenues$FundCode), FUN = sum)
+
+names(revFund_sum) = c("Year","Fund Number", "Total")
+
+renderPlot(
+  ggplot(
+    revFund_sum,
+    aes(x=Year,
+        y=Total
+        )
+  ) +
+    geom_point()+
+    scale_x_discrete()+
+    scale_y_continuous()
+        theme(axis.text.x = element_text(angle = 45),
+          axis.text.y=element_text(angle = 45),
+          legend.position = "none",
+          panel.background = element_rect(fill = "white", color ="white") ,
+          panel.grid.major = element_line(color ="light gray",size=.2)
+          )
+)
+```

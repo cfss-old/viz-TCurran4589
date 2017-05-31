@@ -4,15 +4,62 @@ author: "Thomas Curran"
 date: "5/25/2017"
 output: html_document
 ---
-```{r}
-expenditures<-read_csv("okcpsExp.csv")
+```{r verbose = FALSE, echo=FALSE}
 library(tidyverse)
-library(DT)
-
-
-fundAgg <- aggregate(expenditures$Expenditure, by=list(expenditures$YR), FUN=sum)
-
-x<-DT::renderDataTable(fundAgg)  
-
-x
+expenditures<-read_csv("okcpsExp.csv")
 ```
+
+```{r}
+library(tidyverse)
+library(plotly)
+expenditures<-read_csv("okcpsExp.csv")
+
+expenditures<- filter(expenditures, expenditures$YR == 2015)
+
+expenditures<-aggregate(expenditures$Expenditure,
+                        by = list("Year" = expenditures$YR, 
+                                  "FundCode" = expenditures$FundCode),
+                        FUN = sum
+                        )
+expenditures <- mutate(expenditures, 
+                       "Fund.Name" = paste("Fund",
+                                           expenditures$FundCode, 
+                                           sep = " ")
+                       )
+
+
+
+
+
+  ggplot(
+    expenditures,
+    aes(x=expenditures$Fund.Name,
+        y=expenditures$x,
+        fill = factor(Fund.Name))
+  ) + 
+    geom_bar(stat = "identity") + 
+    scale_x_discrete("FundCode")+
+    ylab("Expenditures in Dollars")+
+    scale_y_continuous(labels=currency)+
+    xlab("Fund Number")+
+    ggtitle(paste("Total Expenditure By Fund", unique(expenditures$Year), sep = " "))+
+    theme(axis.text.x = element_text(angle = 45),
+          axis.text.y=element_text(angle = 45),
+          legend.position = "none",
+          panel.background = element_rect(fill = "white", color ="white") ,
+          panel.grid.major = element_line(color ="light gray",size=.2)
+          )
+
+
+```
+```{r}
+revenues <- read_csv("okcpsRev.csv")
+
+revenues <- select(revenues, Yr, FundCode, FundDescrip, ResourceCode, ResourceDescrip, Revenue)
+
+revenues<-aggregate(revenues$Revenue, by=list(revenues$Yr, revenues$FundCode, revenues$FundDescrip, revenues$ResourceCode), FUN = sum)
+
+DT::datatable(revenues)%>%
+  DT::formatCurrency("x")
+```
+
