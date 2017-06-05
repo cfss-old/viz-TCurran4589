@@ -43,7 +43,8 @@ letterGrades<-unique(af_grades_df$LetteGrade)
 gradeGroups<-as.list(unique(af_grades_df$LetterGradeGroup))
 schools<- unique(enrollment$SiteName)
 year<- unique(enrollment$Year)
-grades<-as.list(unique(enrollment$Grade))
+#grades<-as.list(unique(enrollment$Grade))
+grades<-as.list(c("All","Kindergarten","Pre-School",1,2,3,4,5,6,7,8,9,10,11,12))
 grade_groups<-as.list(unique(af_grades_df$LetterGradeGroup))
 ##############################################################################
 #Wide Enrollment for graphs
@@ -66,7 +67,7 @@ school_name<-school_geo$Site
 expenditures<-read.csv("okcpsExp.csv", header=TRUE)
 #Revenues:
 revenues<-read.csv("okcpsRev.csv", header=TRUE)
-
+letter.color<-c("#63ed79","#47c1ff","#fcf95a","#ff9900","#ff0000" )
 ```
 
 District Map
@@ -81,7 +82,7 @@ getColor<-function(grades){
     } else if(LetterGradeGroup=="B"){
       "blue"
     } else if(LetterGradeGroup=="C"){
-      "purple"
+      "pink"
     } else if(LetterGradeGroup=="D"){
       "orange"
     } else if(LetterGradeGroup=="F"){
@@ -111,7 +112,11 @@ map <- addAwesomeMarkers(map,
                          lat=af_grades$Latitude,
                          icon = icons,
                          label = paste(af_grades$SchoolName,": ", af_grades$LetteGrade))
-map<-addLegend(map, "topright", labels=c("A Schools","B School","C School","D School","F School"), col=c("green","blue","purple","orange","red"), title="2016 A-F Grade Colors")
+map<-addLegend(map, 
+               "topright", 
+               labels=c("A Schools","B School","C School","D School","F School"), 
+               col=c("#42f456","#42deed","#fcf94b","#ffb649","#e04135"), 
+               title="2016 A-F Grade Colors")
 
 map
 
@@ -141,23 +146,21 @@ selectInput(
   choices= c("All", levels)
 )
 ```
-```{r}
-h3("School Superintendent:")
-h4("Aurora Laura")
-renderText({
-})
-```
-
 
 Row
 ---------------------------------------------
-###Number of Schools By Grade Group 2013-2016
+###Number of Schools By Grade 2013-2016
 ```{r}
 af_grades_2<-filter(af_grades_df, af_grades_df$LetterGradeGroup!='N')
 af_grades_agg<-count(group_by(af_grades_2,Year,LetterGradeGroup))
+names(af_grades_agg)<-c("Year","Letter Grade", "Count")
+af_grades_agg$`Letter Grade`<-as.factor(af_grades_agg$`Letter Grade`)
 
 renderPlotly({
-  ggplot(af_grades_agg, aes(Year,y=n, color=factor(LetterGradeGroup)))+
+  ggplot(af_grades_agg, aes(Year,
+                            y=Count, 
+                            color=`Letter Grade`)
+                            )+
     geom_point()+
     scale_x_discrete("Year")+
     geom_line()+
@@ -165,7 +168,13 @@ renderPlotly({
     scale_x_discrete(limits=unique(af_grades_agg$Year))+
     ylab("Number of Schools")+
     labs(color="Grade")+
-    theme(legend.position = "bottom")
+    theme(axis.text.x = element_text(angle = 45),
+          axis.text.y=element_text(angle = 45),
+          legend.position = "none",
+          panel.background = element_rect(fill = "white", color ="white") ,
+          panel.grid.major = element_line(color ="light gray",size=.2)
+          )+
+    scale_colour_manual(values=letter.color)
 })
 ```
 
@@ -183,17 +192,25 @@ af_grades2<- reactive({
 })
 
 renderPlot({
+  af_grades2<-af_grades2()
   ggplot(af_grades2(), aes(LetterGradeGroup, fill=factor(LetterGradeGroup)))+
     geom_bar(stat="count")+
     xlab("Letter Grade Group")+
     ylab("Number of Schools") +
-    theme(legend.position="none")
+    theme(axis.text.x = element_text(angle = 45),
+          axis.text.y=element_text(angle = 45),
+          legend.position = "none",
+          panel.background = element_rect(fill = "white", color ="white") ,
+          panel.grid.major = element_line(color ="light gray",size=.2)
+          )+
+    scale_fill_manual(values = letter.color)
+
 })
 ```
 
 Row
 ---------------------------------------------
-###Query Grades
+###List of Schools and Index Scores
 ```{r}
 gradeGroups <- reactive({
   if(input$schoolLevel == 'All'){
@@ -209,8 +226,8 @@ gradeGroups <- reactive({
     x
   }
 })
-renderTable({
-  gradeGroups()
+renderDataTable({
+  DT::datatable(gradeGroups())
 })
 ```
 
@@ -224,18 +241,31 @@ names(exp_agg)<-c("Year","Expenditure")
 
 fin <-left_join(rev_agg,exp_agg, by=c("Year"="Year"))
 
+
+
 fin<-gather(fin, source, money, Revenue:Expenditure)
+
+fin$source<-as.factor(fin$source
+                      )
 renderPlotly({
   ggplot(
     fin,
     aes(
-      x=fin$Year,
-      y=fin$money,
-      group = factor(source),
-      color =factor(source)
+      x=Year,
+      y=money,
+      #group = cource,
+      color =source
     )) +geom_point()+
       geom_line()+
-    theme(legend.position="none")
+    #geom_area()+
+    theme(#axis.text.x = element_text(angle = 45),
+          axis.text.y=element_text(angle = 45),
+          legend.position = "none",
+          panel.background = element_rect(fill = "white", color ="white") ,
+          panel.grid.major = element_line(color ="light gray",size=.2)
+          ) +
+    scale_y_continuous(labels = scales::dollar_format("$"))+
+    scale_color_manual(values=c("#ff4a47","#4bf442"))
 })
 ```
 
@@ -264,9 +294,10 @@ selectInput(
 selectInput(
   "grade",
   "Select Grade",
-  choices = c("All", grades),
+  choices =grades,
   selected="All"
 )
+
 
 selectInput(
   "subject",
@@ -278,31 +309,45 @@ selectInput(
 
 Row
 -------------------------------------
-###Address
+###Student Teacher Ratio
 ```{r}
-address<-reactive({
-  x<-filter(contact_info, contact_info$Site==input$schools)
-  y<-x$Address
+student_teacher_ratio<-reactive({
+  x<-filter(principals, principals$SchoolName == input$schools)
+  y<-filter(wEnrollment,wEnrollment$Year == 2017 & wEnrollment$SiteName == input$schools)
+  
+  num_teachers<-x$No.Staff
+  num_enrolled<-aggregate(as.numeric(y$Count), by=list(y$Year), FUN=sum)
+  names(num_enrolled)<-c("Year","Enrolled")
+  num_enrolled <- num_enrolled$Enrolled
+  
+  stRatio <- round(num_enrolled/num_teachers)
+  
 })
 
 renderValueBox({
-  
-  h2(valueBox(address(), 
-         "School Address",
+  stRatio <-paste0(student_teacher_ratio(), "/1")
+  h2(valueBox(stRatio, 
+         "(2017) Student-Teacher Ratio",
+         color = ifelse(student_teacher_ratio()<16,"green","red"),
          icon="fa-address-book"))
 })
 ```
 
-### Principal
+### Number of Students
 ```{r}
-principal<-reactive({
-  x<-filter(principals, principals$SchoolName==input$schools)
-  y<-x$Principal
+num_students<-reactive({
+  x<-filter(wEnrollment, wEnrollment$SiteName == input$schools & wEnrollment$Year == input$year)
+  
+  x<-aggregate(x$Count, by=list(x$Year), FUN = sum)
+  names(x)<-c("Year","Enrollment")
+  
+  x$Enrollment
+  
 })
 renderValueBox({
   h2(valueBox(
-    principal(),
-    "School Principal",
+    num_students(),
+    "Number of Enrolled Students",
     icon="fa-id-card"
          ))
 })
@@ -312,8 +357,14 @@ renderValueBox({
 ###A-F Letter Grade
 ```{r}
 afgrade<-reactive({
-  x<-filter(af_grades_df, af_grades_df$SchoolName==input$schools & af_grades_df$Year == input$year)
-  y<-x$LetteGrade
+  if(input$year>=2013 & input$year <= 2016){
+        x<-filter(af_grades_df, 
+                  af_grades_df$SchoolName==input$schools & 
+                    af_grades_df$Year == input$year)
+        y<-x$LetteGrade
+  } else {
+    "-"
+  }
 })
 
 
@@ -324,7 +375,9 @@ renderValueBox({
     icon="fa-pencil",
     color=ifelse(grepl(afgrade(),"A")==TRUE,"green",
                  ifelse(grepl(afgrade(),"B")==TRUE,"#4286f4",
-                        ifelse(grepl(afgrade(),"C")==TRUE,"#def416", ifelse(grepl(afgrade(),"D")==TRUE,"#f47616",ifelse(grepl(afgrade(),"F")==TRUE,"red","gray")))))
+                        ifelse(grepl(afgrade(),"C")==TRUE,"#def416",
+                        ifelse(grepl(afgrade(),"D")==TRUE,"#f47616",
+                               ifelse(grepl(afgrade(),"F")==TRUE,"red","gray")))))
          ))
 })
 ```
@@ -333,9 +386,9 @@ renderValueBox({
 ```{r}
 gradespan<-reactive({
   x<-filter(enrollment, enrollment$SiteName==input$schools)
-  if(min(x$LowGrade) == -1){
+  if(min(x$LowGrade)< -0.5){
     minGrade = "Pre-School"
-  } else if (min(x$LowGrade) == 0){
+  } else if (min(x$LowGrade) == 0 | min(x$LowGrade)== -0.5){
     minGrade = "Kindergarten"
   } else{
     minGrade = min(x$LowGrade)
@@ -373,7 +426,20 @@ demos<-reactive({
 })
 
 renderPlot({
-  ggplot(demos(), aes(x=Group.1, y=x, fill=Group.1))+geom_col()+xlab("Demographic")+ylab("Number of Students")+labs(fill="Demographic")
+  ggplot(demos(), 
+         aes(x=Group.1, 
+             y=x, 
+             fill=Group.1))+
+    geom_col()+
+    ylab("Number of Students")+
+    labs(fill="Demographic") +
+    theme(#axis.text.x = element_text(angle = 45),
+          axis.text.y=element_text(angle = 45),
+          axis.title.x=element_blank(),
+          legend.position = "none",
+          panel.background = element_rect(fill = "white", color ="white") ,
+          panel.grid.major = element_line(color ="light gray",size=.2)
+          )
 })
 ```
 
@@ -381,30 +447,53 @@ renderPlot({
 ###Demographics Over Time
 ```{r}
 demos_ot<-reactive({
+  
   if(input$grade=='All'){
     x<-filter(wEnrollment, wEnrollment$SiteName == input$schools)
     x<-aggregate(x$Count,  by=list("Year" = x$Year, "Demographic"=x$Race),FUN=sum)
+    names(x)=c("Year","Demographic","Count")
+    #x$Count <-as.factor(x$Count)
+    x$Demographic <-as.factor(x$Demographic)
     x
   } else if(input$grade != 'All'){
-    x<-filter(wEnrollment, wEnrollment$SiteName == input$schools & wEnrollment$Grade == input$grade)
-    x<-aggregate(x$Count, by=list("Year" = x$Year, "Demographic"=x$Race),FUN=sum)
+    x<-filter(wEnrollment,wEnrollment$SiteName == input$schools &wEnrollment$Grade == input$grade)
+    x<-aggregate(x$Count,  by=list(x$Year, x$Race),FUN=sum)
+    names(x)=c("Year","Demographic","Count")
+    #x$Count <-as.factor(x$Count)
+        x$Demographic <-as.factor(x$Demographic)
+
     x
-  }
-})
+}
+  })
 
 renderPlotly({
   demos_ot<-demos_ot()
-  
+
+
   ggplotly(ggplot(demos_ot(), 
-                  aes(x=Year, y=x, group=factor(Demographic),
-                      color=factor(Demographic)))+
+                  aes(x=Year, 
+                      y=Count, 
+                      #group=Demographic,
+                      color=Demographic))+
              geom_point()+
              geom_line()+
-    xlab("Year")+
-    ylab("Num Students")+
-      labs(color="Demographic"))
+    ylab("Number of Students")+
+      labs(color="Demographic")+
+      scale_x_continuous(breaks=demos_ot$Year)+
+      theme(#axis.text.x = element_text(angle = 45),
+          axis.text.y=element_text(angle = 45),
+          legend.position = "none",
+          panel.background = element_rect(fill = "white", color ="white") ,
+          panel.grid.major = element_line(color ="light gray",size=.2),
+          axis.text.x = element_text(unique(demos_ot$Year)),
+          axis.title.x = element_blank()
+          )
+    )
 })
+
+
 ```
+
 
 Row
 -------------------------------
@@ -414,35 +503,57 @@ frl<-reactive({
   x<-filter(spi, spi$Site == input$schools)
 })
 
-renderPlotly({
-  ggplotly(
+renderPlot({
+frl<-frl()
     ggplot(frl(), aes(x=YR, y=FRL))+
       geom_point()+
       geom_line()+
-      scale_y_continuous(limits=c(0,1))
-  )
+      scale_y_continuous(limits=c(0,1),labels = percent)+
+    ylab("Free and Reduced Lunch")+
+          scale_x_continuous(breaks=frl$YR)+
+
+      theme(axis.text.x = element_text(angle = 45),
+          axis.text.y=element_text(angle = 45),
+          axis.title.x=element_blank(),
+          legend.position = "none",
+          panel.background = element_rect(fill = "white", color ="white") ,
+          panel.grid.major = element_line(color ="light gray",size=.2)
+          )
+  
 })
 
 ```
 
 ###Student Performance - Testing Profecient and Advanced (EOI Tests are not grade specifc )
 ```{r}
-
+highschool <-c(9,10,11,12)
 scores<- reactive({
   if(input$grade == 'All'){
     NULL
-  } else if(input$grade=="9"|input$grade=="10"|input$grade=="11"|input$grade=="12" | input$grade =="All"){
+  } else if(input$grade %in% highschool){
     filter(testScores_wide, testScores_wide$Site == input$schools & testScores_wide$Subject==input$subject)
-  } else if (input$grade!="9"|input$grade!="10"|input$grade!="11"|input$grade!="12" | input$grade!="All") {
+  } else if (!input$grade %in% highschool) {
     filter(testScores_wide, testScores_wide$Site == input$schools & testScores_wide$Subject==input$subject & testScores_wide$Grade==input$grade)
   }
 })
 renderPlot({
+  scores<-scores()
   if(is.null(scores())){
     print("Please Select Grade and Subject")
   } else{
      ggplot(scores(), aes(x=YR, y=Prct, group=factor(Prof), fill=factor(Prof)))+geom_col(position = "dodge")+
-      scale_y_continuous(limits=c(0,1))+labs(fill="Student Scores")
+      scale_y_continuous(limits=c(0,1),labels = percent)+
+      scale_x_continuous(breaks=scores$YR)+
+      ylab("Percent of students")+
+      theme(axis.text.x = element_text(angle = 45),
+          axis.text.y=element_text(angle = 45),
+          panel.background = element_rect(fill = "white", color ="white") ,
+          panel.grid.major = element_line(color ="light gray",size=.2),
+          axis.title.x=element_blank(),
+          legend.position = "right"
+          )+
+      labs("Proficiency")+
+      scale_fill_manual("proficiency", values=c("Advanced" = "#4fcc30","Satisfactory"="#42d1f4" ))
   }
   
 })
@@ -492,7 +603,7 @@ totalExp <- reactive({
 
 renderValueBox(
   valueBox(
-    totalExp(),
+    h2(totalExp()),
     "Total Expenditure",
     color = "#30dd36",
     icon = "fa-money"
@@ -500,37 +611,75 @@ renderValueBox(
 )
 ```
 
-
-###Box 2
+###Instruction Expenditure
 ```{r}
+
+instruction <- reactive({
+  
+  if(input$exp_year  != 'All'){
+    x<-filter(expenditures, expenditures$YR == input$exp_year & expenditures$FunctionCode == 1000 )
+    x<-aggregate(x$Expenditure, by=list(x$YR), FUN = sum)
+    x$x<-formattable::currency(x$x)
+    formattable::currency(x$x)
+  } else {
+    x<-"-"
+  }
+})
 renderValueBox(
   valueBox(
-    "box #2",
-    "space for box 2",
+    h2(instruction()),
+    "Instruction Expenditure",
     color = "#2faedd",
     icon = "fa-area-chart"
   )
 )
 ```
 
-###Box 3
+###Curriculum
 ```{r}
+
+
+inst_curr <- reactive({
+  
+  if(input$exp_year  != 'All'){
+    x<-filter(expenditures, expenditures$YR == input$exp_year & expenditures$FunctionCode == 2212)
+    x<-aggregate(x$Expenditure, by=list(x$YR), FUN = sum)
+    x$x<-formattable::currency(x$x)
+    formattable::currency(x$x)
+  } else {
+    x<-"-"
+  }
+})
+
 renderValueBox(
   valueBox(
-    "box #3",
-    "space for box 3",
+   h2(inst_curr()),
+    "Curriculum Development",
     color = "#df7ff9",
     icon = "fa-area-chart"
   )
 )
 ```
 
-###Box 4
+###Salary Expenditure
 ```{r}
+
+salary <- reactive({
+  
+  if(input$exp_year  != 'All'){
+    x<-filter(expenditures, expenditures$YR == input$exp_year & expenditures$ObjectCode == 110 )
+    x<-aggregate(x$Expenditure, by=list(x$YR), FUN = sum)
+    x$x<-formattable::currency(x$x)
+
+  } else {
+    x<-"-"
+  }
+})
+
 renderValueBox(
   valueBox(
-    "box #4",
-    "space for box 4",
+    h2(salary()),
+    "Salary Expenditure (110)",
     color = "orange",
     icon = "fa-area-chart"
   )
@@ -540,6 +689,9 @@ renderValueBox(
 
 Row
 -------------------------------------------------------
+
+###Expenditure Table
+
 ```{r}
 expTable<- reactive({
   
@@ -566,13 +718,10 @@ expTable<- reactive({
                 "Object Description",
                 "Expenditure")
   
-    DT::datatable(x, 
-                  extensions = c("KeyTable",
-                                 "Responsive"),
-                  option = list(
-                    pageLength = 7
-                  )
-                  ) %>%
+    DT::datatable(x,
+                  extensions = 'Buttons', options = list(
+                    dom = 'Bfrtip',
+                    buttons = c('copy', 'csv', 'excel', 'pdf', 'print')))%>%
     DT::formatCurrency("Expenditure")
   
   } else {
@@ -596,11 +745,10 @@ expTable<- reactive({
                 "Object Description",
                 "Expenditure")
   
-    DT::datatable(x, 
-                  option = list(
-                    pageLength = 7
-                  ),
-                  extensions = c("Responsive")) %>%
+    DT::datatable(x,
+                  extensions = 'Buttons', options = list(
+                    dom = 'Bfrtip',
+                    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'))) %>%
     DT::formatCurrency("Expenditure")
     }
 })
@@ -609,20 +757,6 @@ renderDataTable({
   expTable()
 })
 ```
-
-Row
--------------------------------------------------------
-###Box 1
-```{r}
-
-```
-
-
-###Box2
-```{r}
-
-```
-
 
 District Revenues
 ===============================================================================
@@ -645,13 +779,13 @@ Row
 ###Total Revenue
 ```{r}
 
-totalExp <- reactive({
+totalRev <- reactive({
   
   if(input$rev_year  != 'All'){
     x<-filter(revenues, Yr == input$rev_year)
     x<-aggregate(x$Revenue, by=list(x$Yr), FUN = sum)
     x$x<-formattable::currency(x$x)
-    x$x
+    h2(x$x)
   } else {
     x<-"-"
   }
@@ -659,7 +793,7 @@ totalExp <- reactive({
 
 renderValueBox(
   valueBox(
-    totalExp(),
+    totalRev(),
     "Total Revenue",
     color = "#30dd36",
     icon = "fa-money"
@@ -670,10 +804,23 @@ renderValueBox(
 
 ###Ad Valorem
 ```{r}
+
+adValorem <- reactive({
+  if(input$rev_year!="All"){
+      x<- filter(revenues, revenues$Yr == input$rev_year & (revenues$ResourceCode == 1110 | revenues$ResourceCode == 1120))
+  x<-aggregate(x$Revenue, by = list(x$Yr), FUN = sum)
+  x$x<-formattable::currency(x$x)
+
+  h2(x$x)
+  } else {
+    "-"
+  }
+  
+})
 renderValueBox(
   valueBox(
-    "box #2",
-    "space for box 2",
+    adValorem(),
+    "Total Ad Valorem Revenue",
     color = "#2faedd",
     icon = "fa-area-chart"
   )
@@ -682,10 +829,21 @@ renderValueBox(
 
 ###Motor Vehicle
 ```{r}
+
+grossProduction <- reactive({
+  if(input$rev_year!="All"){
+      x<- filter(revenues, revenues$Yr == input$rev_year & revenues$ResourceCode==3110)
+      y<-h2(formattable::currency(x$Revenue))
+  } else {
+    "-"
+  }
+})
+
+
 renderValueBox(
   valueBox(
-    "box #3",
-    "space for box 3",
+    grossProduction(),
+    "Gross Poduction Revenue",
     color = "#df7ff9",
     icon = "fa-area-chart"
   )
@@ -694,10 +852,21 @@ renderValueBox(
 
 ###Gross Production
 ```{r}
+
+
+motorVehicle <- reactive({
+  if(input$rev_year!="All"){
+      x<- filter(revenues, revenues$Yr == input$rev_year & revenues$ResourceCode==3120)
+      y<-h2(formattable::currency(x$Revenue))
+  } else {
+    "-"
+  }
+})
+  
 renderValueBox(
   valueBox(
-    "box #4",
-    "space for box 4",
+    motorVehicle(),
+    "Motor Vehicle Tax Revenue",
     color = "orange",
     icon = "fa-area-chart"
   )
@@ -731,13 +900,11 @@ rt<- reactive({
                 "Resource Description",
                 "Revenue")
   
-    DT::datatable(x, 
-                  extensions = c("KeyTable",
-                                 "Responsive"),
-                  option = list(
-                    pageLength = 7
-                  )
-                  ) %>%
+    DT::datatable(x,
+                  extensions = 'Buttons', options = list(
+                    dom = 'Bfrtip',
+                    buttons = c('copy', 'csv', 'excel', 'pdf', 'print')))%>%
+      
     DT::formatCurrency("Revenue")
   
   } else {
@@ -757,48 +924,19 @@ rt<- reactive({
                 "Resource Description",
                 "Revenue")
   
-    DT::datatable(x, 
-                  option = list(
-                    pageLength = 7
-                  ),
-                  extensions = c("Responsive")) %>%
+    DT::datatable(x,
+                  extensions = 'Buttons', options = list(
+                    dom = 'Bfrtip',
+                    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'))) %>%
     DT::formatCurrency("Revenue")
-    }
+    
   
   
-})
+}
+  })
 
 renderDataTable({
   rt()
 })
 ```
 
-Row
--------------------------------------------------------
-###District Revenues (2006 - 2016)
-```{r}
-
-z<-aggregate(revenues$Revenue, by=list(revenues$Yr), FUN = sum)
-names(z)<-c("Year","Total Revenue")
-
-
-renderPlotly({
-  ggplot(
-  z,
-  aes(
-    y=z$`Total Revenue`,
-    x=z$Year)
-  ) + 
-  geom_point()+
-  geom_line()+
-  theme(axis.text.x = element_text(angle = 45),
-          axis.text.y=element_text(angle = 45),
-          legend.position = "none",
-          panel.background = element_rect(fill = "white", color ="white") ,
-          panel.grid.major = element_line(color ="light gray",size=.2)
-          )+
-    ylab("Expenditures in Dollars")+
-    scale_y_continuous(labels = scales::dollar_format("$"))+
-    xlab("Fund Number")
-})
-```

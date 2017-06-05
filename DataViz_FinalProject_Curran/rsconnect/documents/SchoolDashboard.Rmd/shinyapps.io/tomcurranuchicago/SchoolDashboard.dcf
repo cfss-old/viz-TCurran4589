@@ -3,8 +3,8 @@ title: SchoolDashboard
 account: tomcurranuchicago
 server: shinyapps.io
 appId: 183098
-bundleId: 839578
+bundleId: 852998
 url: https://tomcurranuchicago.shinyapps.io/SchoolDashboard/
-when: 1495651791.41874
+when: 1496617436.36715
 asMultiple: TRUE
 asStatic: FALSE
